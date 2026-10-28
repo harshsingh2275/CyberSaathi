@@ -395,9 +395,17 @@ def analyze_url(url: str, language: Language) -> UrlAnalysisResponse:
                 # Fall through to rules
 
     # ── Rules-only fallback ────────────────────────────────────────────────────
+    # Model was unavailable (None) or prediction failed (fell through).
+    # Use rule-based category; never mark unable_to_assess unless the URL
+    # could not be parsed at all (rule_indicators raised an exception).
     category = _rules_only_category(len(rule_indicators))
-    if not rule_indicators:
-        category = RiskCategory.unable_to_assess if model_bundle is None and not rule_indicators else category
+
+    disclaimer = _DISCLAIMER
+    if model_bundle is None:
+        disclaimer = (
+            _DISCLAIMER + " Note: ML model is unavailable; this result is based on "
+            "deterministic rule checks only."
+        )
 
     return UrlAnalysisResponse(
         category=category,
@@ -405,9 +413,6 @@ def analyze_url(url: str, language: Language) -> UrlAnalysisResponse:
         indicators=rule_indicators,
         summary=_get_summary(category, language),
         recommendations=_RECOMMENDATIONS,
-        disclaimer=(
-            _DISCLAIMER + " Note: ML model is unavailable; this result is based on "
-            "deterministic rule checks only."
-        ),
+        disclaimer=disclaimer,
         language=language,
     )
