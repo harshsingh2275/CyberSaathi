@@ -1,0 +1,89 @@
+# -- Python --------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env.local
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.coveragerc
+
+# mypy / pyright
+.mypy_cache/
+.pyright/
+
+# -- Node / Frontend -----------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# -- Environment / secrets -----------------------------------------------------
+# Never commit actual .env files
+.env
+backend/.env
+frontend/.env
+# Allow example files
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# -- ML datasets and generated artifacts --------------------------------------
+# Do not commit raw datasets (can be large or restricted by license)
+ml/data/*.csv
+ml/data/*.tsv
+ml/data/*.parquet
+ml/data/*.json
+ml/data/*.zip
+ml/data/*.gz
+ml/data/*.tar
+
+# Generated model artifacts (reproduced by running train_url_model.py)
+ml/artifacts/*.joblib
+ml/artifacts/*.pkl
+ml/artifacts/*.json
+
+# Generated evaluation reports
+ml/reports/*.json
+ml/reports/*.txt
+ml/reports/*.csv
+
+# -- OS / editors --------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# -- Logs ----------------------------------------------------------------------
+*.log
+logs/
+
+docs/
