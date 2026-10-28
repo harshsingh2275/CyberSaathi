@@ -19,32 +19,42 @@
 import { useState } from 'react';
 import { AnalysisForm, type AnalysisMode } from './components/AnalysisForm';
 import { ResultCard } from './components/ResultCard';
+import { LearnSection } from './components/LearnSection';
 import { Alert, Spinner } from './components/ui';
 import { analyzeUrl, analyzeMessage } from './services/api';
 import type { AnalysisResponse, ApiError, Language } from './types/api';
 
-// ── Mode tab configuration ────────────────────────────────────────────────────
+// ── Tab configuration ─────────────────────────────────────────────────────────
 
-interface ModeTab {
-  id: AnalysisMode;
+type AppTab = AnalysisMode | 'learn';
+
+interface AppTabDef {
+  id: AppTab;
   labelEn: string;
   labelHi: string;
+}
+
+const APP_TABS: AppTabDef[] = [
+  { id: 'url',     labelEn: 'URL Analysis',     labelHi: 'URL Analysis' },
+  { id: 'message', labelEn: 'Message Analysis',  labelHi: 'Message Analysis' },
+  { id: 'learn',   labelEn: 'Learn',             labelHi: 'Seekhein' },
+];
+
+// Analysis-specific tab metadata (description line under the tab bar)
+interface AnalysisModeTab {
+  id: AnalysisMode;
   descEn: string;
   descHi: string;
 }
 
-const MODES: ModeTab[] = [
+const ANALYSIS_MODES: AnalysisModeTab[] = [
   {
     id: 'url',
-    labelEn: 'URL Analysis',
-    labelHi: 'URL Analysis',
     descEn: 'Paste a suspicious link to check for phishing indicators.',
     descHi: 'Koi suspicious link paste karein phishing indicators check karne ke liye.',
   },
   {
     id: 'message',
-    labelEn: 'Message Analysis',
-    labelHi: 'Message Analysis',
     descEn: 'Paste a suspicious SMS, email, or offer message.',
     descHi: 'Koi suspicious SMS, email, ya offer message paste karein.',
   },
@@ -78,16 +88,24 @@ function describeApiError(err: ApiError): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [mode, setMode] = useState<AnalysisMode>('url');
+  const [activeTab, setActiveTab] = useState<AppTab>('url');
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('url');
   const [language, setLanguage] = useState<Language>('en');
   const [appState, setAppState] = useState<AppState>({ status: 'idle' });
 
-  // Switch mode and reset results
-  function handleModeChange(next: AnalysisMode) {
-    if (next === mode) return;
-    setMode(next);
-    setAppState({ status: 'idle' });
+  // Switch top-level tab
+  function handleTabChange(next: AppTab) {
+    if (next === activeTab) return;
+    setActiveTab(next);
+    // When switching to an analysis tab, also update analysisMode and reset state
+    if (next === 'url' || next === 'message') {
+      setAnalysisMode(next);
+      setAppState({ status: 'idle' });
+    }
   }
+
+  // Legacy alias kept for AnalysisForm usage
+  const mode = analysisMode;
 
   // Switch language — keep result visible but note language was used at submission time
   function handleLanguageChange(lang: Language) {
@@ -98,7 +116,7 @@ export default function App() {
     setAppState({ status: 'loading' });
     try {
       const result =
-        mode === 'url'
+        analysisMode === 'url'
           ? await analyzeUrl(value, language)
           : await analyzeMessage(value, language);
       setAppState({ status: 'success', result, mode });
@@ -113,6 +131,10 @@ export default function App() {
   }
 
   const isLoading = appState.status === 'loading';
+  const isAnalysisTab = activeTab === 'url' || activeTab === 'message';
+  const activeAnalysisDesc = isAnalysisTab
+    ? ANALYSIS_MODES.find((m) => m.id === activeTab)
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -167,24 +189,24 @@ export default function App() {
       <main id="main-content" className="flex-1 px-4 py-6 sm:py-8">
         <div className="max-w-2xl mx-auto space-y-6">
 
-          {/* ── Mode tabs ─────────────────────────────────────────────────── */}
+          {/* ── Top-level tab bar ─────────────────────────────────────────── */}
           <div
             role="tablist"
-            aria-label="Analysis mode"
+            aria-label="Application sections"
             className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm"
           >
-            {MODES.map((tab) => {
+            {APP_TABS.map((tab) => {
               const label = language === 'en' ? tab.labelEn : tab.labelHi;
-              const isActive = mode === tab.id;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   role="tab"
                   aria-selected={isActive}
-                  aria-controls="analysis-panel"
+                  aria-controls={`panel-${tab.id}`}
                   id={`tab-${tab.id}`}
-                  onClick={() => handleModeChange(tab.id)}
-                  disabled={isLoading}
+                  onClick={() => handleTabChange(tab.id)}
+                  disabled={isLoading && tab.id !== activeTab}
                   className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-slate-700 disabled:opacity-50 ${
                     isActive
                       ? 'bg-slate-800 text-white'
@@ -197,18 +219,21 @@ export default function App() {
             })}
           </div>
 
-          {/* ── Mode description ──────────────────────────────────────────── */}
+          {/* ── Analysis panel (URL / Message) ────────────────────────────── */}
           <div
-            id="analysis-panel"
+            id={`panel-${analysisMode}`}
             role="tabpanel"
-            aria-labelledby={`tab-${mode}`}
+            aria-labelledby={`tab-${analysisMode}`}
+            hidden={!isAnalysisTab}
             className="space-y-6"
           >
-            <p className="text-sm text-slate-500">
-              {language === 'en'
-                ? MODES.find((m) => m.id === mode)!.descEn
-                : MODES.find((m) => m.id === mode)!.descHi}
-            </p>
+            {activeAnalysisDesc && (
+              <p className="text-sm text-slate-500">
+                {language === 'en'
+                  ? activeAnalysisDesc.descEn
+                  : activeAnalysisDesc.descHi}
+              </p>
+            )}
 
             {/* ── Input form ───────────────────────────────────────────────── */}
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -257,6 +282,16 @@ export default function App() {
             {appState.status === 'success' && (
               <ResultCard result={appState.result} inputMode={appState.mode} />
             )}
+          </div>
+
+          {/* ── Learn panel ───────────────────────────────────────────────── */}
+          <div
+            id="panel-learn"
+            role="tabpanel"
+            aria-labelledby="tab-learn"
+            hidden={activeTab !== 'learn'}
+          >
+            {activeTab === 'learn' && <LearnSection language={language} />}
           </div>
         </div>
       </main>
