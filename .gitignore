@@ -87,3 +87,23 @@ desktop.ini
 logs/
 
 docs/
+
+# Raw datasets
+data/raw/
+data/processed/
+
+# Trained model artifacts
+ml/artifacts/
+ml/reports/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
