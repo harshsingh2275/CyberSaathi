@@ -74,8 +74,10 @@ _RULES: list[_Rule] = [
             "Koi bhi genuine bank, sarkar, ya company kabhi OTP nahi maangti."
         ),
         pattern=re.compile(
-            r'\b(otp|one[\s-]?time[\s-]?pass(?:word|code)?|password|passcode|pin)\b'
-            r'[\s\S]{0,60}(share|send|give|provide|enter|tell|type|forward)',
+            r'\b((otp|one[\s-]?time[\s-]?pass(?:word|code)?|password|passcode|pin)\b[\s\S]{0,60}'
+            r'(share|send|give|provide|enter|tell|type|forward)|'
+            r'(share|send|give|provide|enter|tell|type|forward)\b[\s\S]{0,60}'
+            r'(otp|one[\s-]?time[\s-]?pass(?:word|code)?|password|passcode|pin))\b',
             re.IGNORECASE,
         ),
     ),
@@ -200,7 +202,8 @@ _RULES: list[_Rule] = [
             "Savdhan rahein — link ek phishing page par le ja sakta hai."
         ),
         pattern=re.compile(
-            r'(click|tap|visit|open|follow|go\s+to)\s+(here|this|the)?\s*(link|url|button|below)',
+            r'\b(click|tap|visit|open|follow|go\s+to)\b[\s\S]{0,30}'
+            r'\b(link|url|button|website|portal|here|below)\b',
             re.IGNORECASE,
         ),
     ),

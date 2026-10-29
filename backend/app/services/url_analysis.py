@@ -131,7 +131,8 @@ def _detect_rule_indicators(url: str) -> list[Indicator]:
     indicators: list[Indicator] = []
 
     try:
-        parsed = urlparse(url)
+        parse_target = url if ("://" in url or url.startswith("//")) else f"//{url}"
+        parsed = urlparse(parse_target)
         hostname = (parsed.hostname or "").lower()
         path = parsed.path or ""
         scheme = parsed.scheme or ""

@@ -58,7 +58,10 @@ class UrlAnalysisRequest(BaseModel):
     def no_control_characters(cls, v: str) -> str:
         if any(ord(c) < 32 for c in v):
             raise ValueError("URL must not contain control characters.")
-        return v.strip()
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("URL must not be empty or whitespace only.")
+        return stripped
 
 
 class UrlAnalysisResponse(BaseModel):
@@ -81,7 +84,10 @@ class MessageAnalysisRequest(BaseModel):
     @field_validator("message")
     @classmethod
     def strip_message(cls, v: str) -> str:
-        return v.strip()
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Message must not be empty or whitespace only.")
+        return stripped
 
 
 class MessageAnalysisResponse(BaseModel):

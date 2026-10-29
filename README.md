@@ -87,19 +87,20 @@ Open: http://localhost:5173
 ```bash
 cd backend
 # (virtual environment must be active)
-pytest
+pytest -v
 ```
 
-Expected output: all tests pass. See `backend/tests/` for test files.
+Expected output: 150 passed. Tests cover API contracts, model reproducibility, analysis logic, security & input hardening, and realistic end-to-end smoke scenarios.
 
 ---
 
-### 4 — Frontend type-check and lint
+### 4 — Frontend type-check, lint, and quiz check
 
 ```bash
 cd frontend
 npm run type-check
 npm run lint
+npm run check-quiz
 ```
 
 ---
@@ -114,19 +115,21 @@ npm run build
 
 ---
 
-## ML model (T-02 — to be completed)
+## ML model (T-02 baseline)
 
-The URL classification model is trained separately. To reproduce:
+The URL classification model uses a `RandomForestClassifier` trained on the peer-reviewed Hannousse & Yahiouche dataset (`dataset_B_05_2020.csv`), computing 53 URL-only features locally without any network requests.
 
-```bash
-# 1. Place a verified, licensed dataset in ml/data/ (see ml/data/README.md)
-# 2. From the repository root:
-python ml/train_url_model.py
-# Outputs: ml/artifacts/url_model.joblib, ml/artifacts/feature_schema.json
-#          ml/reports/url_model_evaluation.json
-```
-
-Until the model artifact is built, the backend returns `"method": "unable_to_assess"`.
+- **Artifacts:** `ml/artifacts/url_model.joblib`, `ml/artifacts/feature_schema.json`
+- **Measured Metrics (held-out test set):**
+  - Accuracy: 94.94%
+  - Precision: 94.75%
+  - Recall: 95.14%
+  - F1-Score: 0.9495
+- **Reproducible training command:**
+  ```bash
+  python ml/train_url_model.py
+  ```
+- If the artifact is unavailable, the backend gracefully falls back to deterministic rule checks with explicit `"method": "rules"` disclosure.
 
 ---
 
@@ -136,30 +139,33 @@ Until the model artifact is built, the backend returns `"method": "unable_to_ass
 /
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI application factory
-│   │   ├── config.py            # Settings (pydantic-settings)
-│   │   ├── schemas/             # Pydantic request/response models
-│   │   ├── api/routes/          # Route handlers
-│   │   └── services/            # Analysis logic (stubs → real in T-02/T-03)
-│   ├── tests/                   # pytest test suite
+│   │   ├── main.py              # FastAPI app factory, CORS, security headers & error handlers
+│   │   ├── config.py            # Settings (pydantic-settings, CORS, input limits)
+│   │   ├── schemas/             # Pydantic request/response models & validation
+│   │   ├── api/routes/          # /health, /api/analyze/url, /api/analyze/message
+│   │   └── services/            # URL ML+rule analysis & message rule-based analysis
+│   ├── tests/                   # pytest test suite (150 tests covering contracts, ML, security, e2e)
 │   ├── requirements.txt
 │   ├── pyproject.toml
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx              # Root component (skeleton → full UI in T-04)
-│   │   ├── services/api.ts      # All API calls (configurable base URL)
-│   │   └── types/api.ts         # TypeScript types mirroring backend schemas
+│   │   ├── App.tsx              # Root component with tabs, mode selection, language toggle
+│   │   ├── components/          # AnalysisForm, ResultCard, LearnSection, QuizSection, UI
+│   │   ├── data/                # Locally bundled lessons (7) and quiz questions (13)
+│   │   ├── services/api.ts      # Backend API integration (configurable base URL)
+│   │   └── types/api.ts         # TypeScript interfaces matching backend schemas
 │   ├── index.html
 │   ├── vite.config.ts
 │   ├── package.json
 │   └── .env.example
 ├── ml/
 │   ├── data/README.md           # Dataset placement instructions
-│   ├── artifacts/README.md      # Generated artifacts documentation
-│   ├── reports/README.md        # Evaluation report documentation
-│   └── train_url_model.py       # Training script (stub → full in T-02)
-├── docs/                        # Planning documents and build instructions
+│   ├── artifacts/               # Trained url_model.joblib and feature_schema.json
+│   ├── reports/                 # Measured evaluation reports
+│   ├── url_features.py          # 53 deterministic URL feature extractors (no network)
+│   └── train_url_model.py       # Reproducible training pipeline
+├── docs/                        # Planning documents, guides, and prompts
 ├── .gitignore
 └── README.md
 ```
@@ -188,7 +194,7 @@ Request:
 ```json
 {"message": "Congratulations! You have won a scholarship.", "language": "hinglish"}
 ```
-Same response shape as URL analysis.
+Same response shape as URL analysis. Method is always `rules` (transparently disclosed).
 
 Full schema details: http://localhost:8000/docs
 
@@ -198,29 +204,35 @@ Full schema details: http://localhost:8000/docs
 
 | Variable | Where | Default | Purpose |
 |----------|-------|---------|---------|
-| `CORS_ORIGINS` | `backend/.env` | `http://localhost:5173` | Comma-separated allowed frontend origins |
+| `CORS_ORIGINS` | `backend/.env` | `http://localhost:5173,http://127.0.0.1:5173,...` | Comma-separated allowed frontend origins |
 | `ENVIRONMENT` | `backend/.env` | `development` | Runtime environment |
-| `MODEL_PATH` | `backend/.env` | (auto-resolved) | Override path to trained model artifact |
+| `MODEL_PATH` | `backend/.env` | `ml/artifacts/url_model.joblib` | Override path to trained model artifact |
 | `VITE_API_BASE_URL` | `frontend/.env` | `http://localhost:8000` | Backend base URL for API calls |
 
 Never commit `.env` files. Never put secrets in frontend variables.
 
 ---
 
-## Privacy and safety notices
+## Privacy and security architecture (T-06 verified)
 
-- Submitted URLs are **never opened, fetched, or resolved**. Only the string is analyzed.
-- Raw submitted URLs and messages are **not stored or logged** by default.
-- Results are not a guarantee of safety. Independent verification is always necessary.
-- HTTPS alone does not prove a website is trustworthy.
+- **Submitted URLs are NEVER opened, fetched, crawled, or resolved.** URL analysis uses string parsing and local feature extraction only. No HTTP requests, sockets, or DNS lookups are made to submitted targets.
+- **Raw user submissions are NEVER persisted or logged.** User URLs and message texts are not written to databases, files, or server log files.
+- **No sensitive input reflection in errors.** Validation exception handlers strip user inputs from HTTP 422 error payloads, ensuring tokens, passwords, and sensitive text are never reflected.
+- **HTML / Script injection prevented.** Responses contain structured text without reflected markup. Frontend renders all dynamic values via safe React text nodes; no `dangerouslySetInnerHTML` is used.
+- **Strict CORS policy.** Configurable via `CORS_ORIGINS`; wildcards with credentials are not permitted. Preflight OPTIONS requests from unauthorized origins receive no CORS approval.
+- **HTTP security headers.** Every response includes `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
+- **Stack trace & secret protection.** Generic 500 error responses prevent leaking internal exception traces, environment variables, or server paths.
+- **No third-party threat intelligence or LLM API calls.** Analysis runs completely offline and deterministically without external API dependencies.
 
 ---
 
-## Known limitations (T-01 state)
+## Known limitations & known issues
 
-- URL and message analysis return `Unable to Assess` until the model (T-02) and analysis services (T-03) are implemented.
-- Frontend shows a placeholder page until the UI is built in T-04.
-- Message analysis will use transparent rule-based indicators (labeled as `rules`) unless a valid text dataset is separately verified and trained.
+- **Static structural analysis only:** URL classification relies on structural and lexical patterns (53 features) and deterministic rule heuristics. Because pages are never fetched (to protect user privacy and safety), it cannot detect malicious payload content inside compromised legitimate web pages.
+- **URL shortening services:** Link shorteners (e.g., bit.ly, tinyurl.com) conceal real destinations. CyberSaathi flags them as suspicious by rule because expanding the shortener would require resolving or visiting the redirect target.
+- **Message analysis is rule-based:** Message classification relies on pattern matching for common phishing tropes (OTPs, upfront fees, urgency, lottery claims, KYC threats). It is explicitly labeled as `rules` and does not use an NLP or generative LLM model.
+- **Probabilistic results:** Automated analysis can produce false positives and false negatives. A "No Obvious Warning Signs" verdict is **not** a guarantee of safety. Independent verification via official channels is always required.
+- **Language support:** Explanations and educational advice are available in English and Hinglish. The underlying ML URL classifier evaluates language-agnostic URL structural features.
 
 ---
 
@@ -230,10 +242,10 @@ Never commit `.env` files. Never put secrets in frontend variables.
 |------|-------------|--------|
 | T-00 | Repository audit | ✅ Complete |
 | T-01 | Project skeleton, API contracts | ✅ Complete |
-| T-02 | Dataset verification, URL ML baseline | ⏳ Pending |
-| T-03 | Backend analysis services and tests | ⏳ Pending |
-| T-04 | Frontend UI and real API integration | ⏳ Pending |
-| T-05 | Learning section and quiz | ⏳ Pending |
-| T-06 | Security/privacy hardening | ⏳ Pending |
+| T-02 | Dataset verification, URL ML baseline | ✅ Complete |
+| T-03 | Backend analysis services and tests | ✅ Complete |
+| T-04 | Frontend UI and real API integration | ✅ Complete |
+| T-05 | Learning section and quiz | ✅ Complete |
+| T-06 | Security/privacy hardening & quality review | ✅ Complete |
 | T-07 | Deployment and reproducible docs | ⏳ Pending |
 | T-08 | Final evidence and handoff | ⏳ Pending |
