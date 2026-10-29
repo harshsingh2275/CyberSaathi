@@ -14,7 +14,7 @@ from app.services.message_analysis import analyze_message
 from app.services.url_analysis import analyze_url
 from app.config import get_settings
 
-router = APIRouter(prefix="/api/analyze")
+router = APIRouter()
 
 
 def _enforce_url_limit(url: str) -> None:
@@ -35,7 +35,8 @@ def _enforce_message_limit(message: str) -> None:
         )
 
 
-@router.post("/url", response_model=UrlAnalysisResponse)
+@router.post("/api/analyze/url", response_model=UrlAnalysisResponse)
+@router.post("/analyze/url", response_model=UrlAnalysisResponse, include_in_schema=False)
 async def analyze_url_endpoint(body: UrlAnalysisRequest) -> UrlAnalysisResponse:
     """
     Analyze a URL string.
@@ -48,7 +49,8 @@ async def analyze_url_endpoint(body: UrlAnalysisRequest) -> UrlAnalysisResponse:
     return analyze_url(body.url, body.language)
 
 
-@router.post("/message", response_model=MessageAnalysisResponse)
+@router.post("/api/analyze/message", response_model=MessageAnalysisResponse)
+@router.post("/analyze/message", response_model=MessageAnalysisResponse, include_in_schema=False)
 async def analyze_message_endpoint(
     body: MessageAnalysisRequest,
 ) -> MessageAnalysisResponse:
