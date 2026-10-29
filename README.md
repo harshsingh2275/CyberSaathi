@@ -265,7 +265,7 @@ The simplest and most reliable free-tier arrangement for CyberSaathi is:
 | **Platform** | Render Web Service (Free Tier) | Render Static Site or Vercel (Free Tier) |
 | **Root Directory** | `backend` | `frontend` |
 | **Runtime** | Python 3.10+ (tested on 3.12.10) | Node.js 18+ (tested on Vite 5 / Node 20) |
-| **Build Command** | `pip install -r requirements.txt` | `npm install && npm run build` |
+| **Build Command** | `pip install --upgrade pip && pip install -r requirements.txt` | `npm install && npm run build` |
 | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` | N/A (Static file serving from CDN) |
 | **Publish Directory** | N/A | `dist` |
 | **Health Check Path** | `GET /health` (`200 OK`, `{"status": "ok"}`) | `GET /` (`200 OK`) |
@@ -295,10 +295,11 @@ When you are ready to publish CyberSaathi to live cloud hosting:
      - **Name:** `cybersaathi-backend`
      - **Root Directory:** `backend`
      - **Runtime:** `Python 3`
-     - **Build Command:** `pip install -r requirements.txt`
+     - **Build Command:** `pip install --upgrade pip && pip install -r requirements.txt`
      - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
      - **Plan:** Free
    - In **Advanced** → **Environment Variables**:
+     - `PYTHON_VERSION` = `3.12.2`
      - `ENVIRONMENT` = `production`
      - `CORS_ORIGINS` = `https://cybersaathi-frontend.onrender.com` (or your chosen frontend URL)
    - In **Health Check Path**, enter: `/health`
