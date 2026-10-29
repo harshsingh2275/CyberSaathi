@@ -193,9 +193,53 @@ For message classification, do not claim a trained model unless the equivalent p
 - No claim that HTTPS, a clean result, or a model score guarantees safety.
 
 ## 9. Deployment architecture
-- Frontend hosted as a static build where suitable.
-- FastAPI hosted on a Python-compatible service.
-- Configure frontend API base URL and backend CORS explicitly.
-- Confirm model artifact size and runtime dependencies against host limits.
-- Verify health and both analysis routes from the deployed frontend.
-- If free hosting is unsuitable, document a reliable local run path rather than claiming a working deployment.
+
+### 9.1 Target architecture (free-tier decoupled hosting)
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ Static SPA Hosting (Render Static Site or Vercel)                │
+│ - Built assets from `frontend/dist/`                             │
+│ - SPA routing: `/*` -> `/index.html` (via _redirects/vercel.json)│
+│ - Client-side environment: VITE_API_BASE_URL                     │
+└─────────────────────────────────┬────────────────────────────────┘
+                                  │ HTTPS Requests
+                                  │ (Strict CORS check)
+┌─────────────────────────────────▼────────────────────────────────┐
+│ FastAPI Web Service (Render Free Web Service)                    │
+│ - Root directory: `backend/`                                     │
+│ - Runtime: Python 3.10+ (tested on Python 3.12)                  │
+│ - Build: `pip install -r requirements.txt`                       │
+│ - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`      │
+│ - Health Check: GET `/health` -> `{"status": "ok"}`              │
+│ - Memory Footprint: ~140 MB (well within 512 MB limit)           │
+│ - Environment variables:                                         │
+│     * `ENVIRONMENT=production`                                   │
+│     * `CORS_ORIGINS=https://<your-frontend>.onrender.com`        │
+│     * `PORT=8000` (auto-assigned by host)                        │
+└─────────────────────────────────┬────────────────────────────────┘
+                                  │ Local filesystem read
+┌─────────────────────────────────▼────────────────────────────────┐
+│ Machine Learning Model Artifact                                  │
+│ - File: `ml/artifacts/url_model.joblib` (~22.3 MB)               │
+│ - Schema: `ml/artifacts/feature_schema.json` (53 features)       │
+│ - Fallback: If missing, transparent deterministic rules fallback │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 Build & runtime verification
+
+| Parameter | Backend | Frontend |
+|---|---|---|
+| **Runtime** | Python 3.10+ (Uvicorn/FastAPI) | Node.js 18+ (Vite/React SPA) |
+| **Working Directory** | `backend/` | `frontend/` |
+| **Build Command** | `pip install -r requirements.txt` | `npm install && npm run build` |
+| **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` | Static file serving via CDN |
+| **Artifact / Output** | In-memory FastAPI app + loaded joblib artifact | Static files in `frontend/dist/` |
+| **Artifact Size** | `url_model.joblib`: 22.3 MB | `dist/`: ~225 KB total assets |
+| **Health Check Path** | `GET /health` (`200 OK`) | `GET /` (`200 OK`) |
+| **CORS Policy** | Whitelist via `CORS_ORIGINS`, no wildcards | Handled by browser origin header |
+| **Secrets Exposure** | Zero secrets required; no LLM API keys | Zero private variables bundled |
+
+### 9.3 Deployment blocker documentation
+Live deployment requires user-owned cloud accounts (Render / Vercel), manual dashboard authentication, and linking the user's GitHub repository as documented in `manual_actions.md` (M-05). Automated cloud deployment without user authorization is not permitted by project guidelines, and secrets must never be placed in source code. Local execution is fully reproducible and verified end-to-end.

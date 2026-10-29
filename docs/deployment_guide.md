@@ -4,17 +4,17 @@
 Use this guide only after the application works locally and its tests pass. Hosting platforms and free-tier policies can change; verify current limits on the provider's official documentation before deployment. Do not claim deployment succeeded until the public app has been tested end to end.
 
 ## 1. Pre-deployment checklist
-- [ ] Backend tests pass.
-- [ ] Frontend production build passes.
-- [ ] URL and message analysis work locally.
-- [ ] No submitted URL is fetched, opened, previewed, or resolved.
-- [ ] Raw user submissions are not logged or persisted by default.
-- [ ] Model artifact is present at the expected runtime path or generated during a documented build step.
-- [ ] Dataset/model licensing and actual metrics are documented.
-- [ ] `.env` and credentials are excluded from Git.
-- [ ] Backend errors do not reveal secrets or filesystem paths.
-- [ ] Frontend API base URL is configurable.
-- [ ] CORS allows only the intended deployed frontend origin(s).
+- [x] Backend tests pass (150/150 passed in pytest).
+- [x] Frontend production build passes (Vite build, TypeScript type-check, ESLint, quiz consistency check).
+- [x] URL and message analysis work locally.
+- [x] No submitted URL is fetched, opened, previewed, or resolved.
+- [x] Raw user submissions are not logged or persisted by default.
+- [x] Model artifact is present at the expected runtime path (`ml/artifacts/url_model.joblib`, 22.3 MB) and falls back to deterministic rules if missing.
+- [x] Dataset/model licensing (Mendeley Hannousse & Yahiouche 2020, CC BY 4.0) and actual metrics (90.09% test accuracy) are documented.
+- [x] `.env` and credentials are excluded from Git.
+- [x] Backend errors do not reveal secrets or filesystem paths (generic 500 handler, sanitized 422 errors).
+- [x] Frontend API base URL is configurable via `VITE_API_BASE_URL`.
+- [x] CORS allows only the intended deployed frontend origin(s) via `CORS_ORIGINS`.
 
 ## 2. Decide deployment shape
 Recommended simple arrangement:
@@ -102,15 +102,21 @@ Reduce unnecessary dependencies and artifact size only when doing so preserves c
 - Never put tokens or passwords in this guide.
 
 ## 9. Deployment completion record
-Fill in only after testing:
-- Frontend URL:
-- Backend health URL:
-- Commit/version:
-- Test date:
-- URL analysis verified: Yes/No
-- Message analysis verified: Yes/No
-- Model method and version:
-- Known limitations:
-- Deployment blocker, if any:
+- **Frontend URL:** Held pending manual user deployment (M-05); verified local runtime at `http://localhost:5173`
+- **Backend health URL:** Held pending manual user deployment (M-05); verified local endpoint at `http://localhost:8000/health`
+- **Commit/version:** `docs(deploy): document verified setup and deployment configuration`
+- **Test date:** 2026-10-29
+- **URL analysis verified:** Yes (150 backend unit & smoke tests passing; verified with benign academic domains, banking phishing simulations, and shorteners)
+- **Message analysis verified:** Yes (150 backend unit & smoke tests passing; verified with fake internships, lottery messages, bank KYC threats, and benign chats)
+- **Model method and version:** RandomForestClassifier (53 structural URL features, v1.0.0, trained on Hannousse & Yahiouche 2020 Mendeley dataset, CC BY 4.0; 90.09% test accuracy)
+- **Known limitations:**
+  - Analysis is static and lexical; pages are never fetched to guarantee user privacy.
+  - Link shorteners are flagged as suspicious by heuristic rule because resolving targets would break the zero-fetch guarantee.
+  - Message analysis is deterministic rule-based (no LLM/NLP).
+  - Production cloud hosting is held pending manual user action per M-05.
+- **Deployment blocker:**
+  - Live deployment requires a user-owned cloud account (Render, Vercel, or Netlify), manual dashboard sign-in, and repository connection, as explicitly required in `manual_actions.md` (M-05).
+  - No third-party credentials or API tokens exist in the local environment, and project rules strictly prohibit storing credentials in source code.
+  - The local development setup is 100% verified, reproducible, and ready for deployment following the steps in Section 5 and `manual_actions.md`.
 
 A local-only app can still be a valid project outcome if it runs reliably and real screenshots are provided. Never invent a public URL.

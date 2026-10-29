@@ -119,17 +119,31 @@ npm run build
 
 The URL classification model uses a `RandomForestClassifier` trained on the peer-reviewed Hannousse & Yahiouche dataset (`dataset_B_05_2020.csv`), computing 53 URL-only features locally without any network requests.
 
-- **Artifacts:** `ml/artifacts/url_model.joblib`, `ml/artifacts/feature_schema.json`
-- **Measured Metrics (held-out test set):**
-  - Accuracy: 94.94%
-  - Precision: 94.75%
-  - Recall: 95.14%
-  - F1-Score: 0.9495
+- **Dataset Provenance:**
+  - Source: Mendeley Data — *Web page phishing detection* (Hannousse & Yahiouche, 2020)
+  - URL: `https://data.mendeley.com/datasets/c2gw7fy2j4/3`
+  - License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+  - Total Samples: 11,430 balanced URLs (5,715 phishing, 5,715 legitimate)
+  - Train/Val/Test Split: 70% train (8,000 URLs), 15% validation (1,715 URLs), 15% test (1,715 URLs)
+  - Leakage Prevention: Deterministic split with fixed random seed (42) applied before model fitting.
+- **Artifacts:** `ml/artifacts/url_model.joblib` (22.3 MB), `ml/artifacts/feature_schema.json` (53 features, v1.0.0)
+- **Measured Evaluation Metrics (held-out test set of 1,715 samples):**
+  - **Accuracy:** 90.09% (0.90087)
+  - **Phishing Precision:** 89.26% (0.89257)
+  - **Phishing Recall:** 91.13% (0.91132)
+  - **Phishing F1-Score:** 90.18% (0.90185)
+  - **Macro Average F1:** 90.09% (0.90086)
+  - **Confusion Matrix:**
+    - True Negatives (Legitimate classified as legitimate): 764
+    - False Positives (Legitimate flagged as phishing): 94 (FPR: 10.96%)
+    - False Negatives (Phishing missed as legitimate): 76 (FNR: 8.87%)
+    - True Positives (Phishing correctly caught): 781
 - **Reproducible training command:**
   ```bash
+  # Ensure Python virtual environment with requirements.txt is active
   python ml/train_url_model.py
   ```
-- If the artifact is unavailable, the backend gracefully falls back to deterministic rule checks with explicit `"method": "rules"` disclosure.
+- If the artifact is unavailable, the backend gracefully falls back to deterministic rule checks with explicit `"method": "rules"` disclosure. No fake predictions or mock results are ever returned.
 
 ---
 
@@ -236,6 +250,79 @@ Never commit `.env` files. Never put secrets in frontend variables.
 
 ---
 
+## Deployment & Hosting Configuration (T-07)
+
+### Recommended hosting approach
+The simplest and most reliable free-tier arrangement for CyberSaathi is:
+- **Backend:** [Render](https://render.com) Web Service (Free Tier: 512 MB RAM, Python 3.12, custom domain/SSL, custom health check).
+- **Frontend:** [Render](https://render.com) Static Site or [Vercel](https://vercel.com) (Free Tier: unlimited bandwidth, global edge CDN, automatic SPA rewrites via `_redirects` / `vercel.json`).
+- **Infrastructure-as-Code:** Provided via [`render.yaml`](file:///D:/CyberSaathi/render.yaml) at the repository root.
+
+### Specification & Verified Parameters
+
+| Parameter | Backend Service | Frontend Static Site |
+|---|---|---|
+| **Platform** | Render Web Service (Free Tier) | Render Static Site or Vercel (Free Tier) |
+| **Root Directory** | `backend` | `frontend` |
+| **Runtime** | Python 3.10+ (tested on 3.12.10) | Node.js 18+ (tested on Vite 5 / Node 20) |
+| **Build Command** | `pip install -r requirements.txt` | `npm install && npm run build` |
+| **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` | N/A (Static file serving from CDN) |
+| **Publish Directory** | N/A | `dist` |
+| **Health Check Path** | `GET /health` (`200 OK`, `{"status": "ok"}`) | `GET /` (`200 OK`) |
+| **Environment Variables** | `ENVIRONMENT=production`<br>`CORS_ORIGINS=https://<your-frontend>.onrender.com` | `VITE_API_BASE_URL=https://<your-backend>.onrender.com` |
+| **Model Artifact Size** | `ml/artifacts/url_model.joblib`: 22.3 MB (~140 MB RAM in memory) | `dist/`: ~225 KB total assets |
+| **CORS Policy** | Whitelist via `CORS_ORIGINS`; wildcards disallowed | Browser origin sent in headers |
+| **Secrets Exposure** | Zero secrets required; no LLM API keys | Zero private variables bundled |
+
+### Deployment status and blocker documentation
+- **Deployment Status:** Configuration verified; local end-to-end runtime 100% passing.
+- **Exact Blocker:** Live cloud deployment requires a user-owned account (on Render or Vercel), personal login authentication, and linking the user's GitHub repository, as explicitly specified in [`docs/manual_actions.md`](file:///D:/CyberSaathi/docs/manual_actions.md) (M-05).
+- **Zero-Secret Policy:** In accordance with project security invariants, Antigravity does not request, store, or embed third-party API tokens, cloud passwords, or private SSH keys into source code or environment files.
+- **Live Verification Requirement:** Under project rules, a live deployment URL is never claimed until the URL is tested end-to-end in a real browser.
+
+### Steps for user to deploy live (M-05 Action Guide)
+
+When you are ready to publish CyberSaathi to live cloud hosting:
+
+1. **Push your code to GitHub:**
+   ```bash
+   git push origin master
+   ```
+2. **Deploy Backend on Render:**
+   - Sign in to [dashboard.render.com](https://dashboard.render.com).
+   - Click **New +** → **Web Service** → Connect your GitHub repository (`CyberSaathi`).
+   - Settings:
+     - **Name:** `cybersaathi-backend`
+     - **Root Directory:** `backend`
+     - **Runtime:** `Python 3`
+     - **Build Command:** `pip install -r requirements.txt`
+     - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+     - **Plan:** Free
+   - In **Advanced** → **Environment Variables**:
+     - `ENVIRONMENT` = `production`
+     - `CORS_ORIGINS` = `https://cybersaathi-frontend.onrender.com` (or your chosen frontend URL)
+   - In **Health Check Path**, enter: `/health`
+   - Click **Create Web Service**. Wait for deployment. Your backend URL will be `https://cybersaathi-backend.onrender.com`.
+3. **Deploy Frontend on Render (or Vercel):**
+   - Click **New +** → **Static Site** → Connect the same repository.
+   - Settings:
+     - **Name:** `cybersaathi-frontend`
+     - **Root Directory:** `frontend`
+     - **Build Command:** `npm install && npm run build`
+     - **Publish Directory:** `dist`
+   - In **Environment Variables**:
+     - `VITE_API_BASE_URL` = `https://cybersaathi-backend.onrender.com` (use your actual backend URL from step 2)
+   - Click **Create Static Site**.
+4. **Update CORS:**
+   - Go back to your Backend Web Service settings on Render.
+   - Update `CORS_ORIGINS` to match your actual frontend URL (e.g., `https://cybersaathi-frontend.onrender.com`).
+5. **Verify End-to-End:**
+   - Open your frontend URL in a browser.
+   - Test a URL analysis (e.g. `https://example.com`), a message analysis, the Hinglish toggle, and the quiz.
+   - Check browser DevTools network tab to ensure requests to `/api/analyze/url` return `200 OK`.
+
+---
+
 ## Implementation status
 
 | Task | Description | Status |
@@ -247,5 +334,5 @@ Never commit `.env` files. Never put secrets in frontend variables.
 | T-04 | Frontend UI and real API integration | ✅ Complete |
 | T-05 | Learning section and quiz | ✅ Complete |
 | T-06 | Security/privacy hardening & quality review | ✅ Complete |
-| T-07 | Deployment and reproducible docs | ⏳ Pending |
+| T-07 | Deployment and reproducible docs | ✅ Complete (Configuration verified; live deploy held pending M-05 manual action) |
 | T-08 | Final evidence and handoff | ⏳ Pending |

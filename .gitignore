@@ -86,15 +86,13 @@ desktop.ini
 *.log
 logs/
 
-docs/
-
 # Raw datasets
 data/raw/
 data/processed/
 
 # Trained model artifacts
-ml/artifacts/
-ml/reports/
+ml/artifacts/*.joblib
+ml/artifacts/*.pkl
 
 # Python
 __pycache__/

@@ -1,0 +1,41 @@
+# CyberSaathi AI — Render Blueprint (render.yaml)
+# Simplest free-tier deployment approach:
+#   1. Backend: Python FastAPI Web Service
+#   2. Frontend: Static Web Service (Vite React SPA)
+# Both services can be deployed from this repository on Render's free tier.
+
+services:
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  - type: web
+    name: cybersaathi-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        # Update with your actual deployed frontend URL (e.g., https://cybersaathi-frontend.onrender.com)
+        value: "http://localhost:5173"
+      - key: PYTHON_VERSION
+        value: 3.12.10
+
+  # ── Frontend Static Site ───────────────────────────────────────────────────
+  - type: web
+    name: cybersaathi-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        # Update with your actual deployed backend URL (e.g., https://cybersaathi-backend.onrender.com)
+        value: "http://localhost:8000"
